@@ -54,7 +54,6 @@ class fixedlen_tagger(gr.basic_block):
         inp = input_items[0]
         out = output_items[0]
 
-        # TODO: make these two sections the same one by doing window = list(self.stream) + inp.tolist()
         window = list(self.stream) + inp.tolist()
         
         tags = self.get_tags_in_range(0, self.nitems_read(0) - len(self.stream), max(self.nitems_read(0) + len(inp) - self.packet_len + 1, 0), self.syncword_tag)
