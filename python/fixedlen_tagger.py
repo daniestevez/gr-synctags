@@ -47,7 +47,9 @@ class fixedlen_tagger(gr.basic_block):
         self.packetlen_tag = pmt.string_to_symbol(packetlen_tag)
         self.packet_len = packet_len
         self.stream = collections.deque(maxlen=packet_len - 1)
+        self.maxtag = 0
         self.data = []
+        self.tags = []
         self.written = 0
 
     def general_work(self, input_items, output_items):
@@ -56,13 +58,19 @@ class fixedlen_tagger(gr.basic_block):
 
         window = list(self.stream) + inp.tolist()
         
-        tags = self.get_tags_in_range(0, self.nitems_read(0) - len(self.stream), max(self.nitems_read(0) + len(inp) - self.packet_len + 1, 0), self.syncword_tag)
-        for tag in tags:
-            start = tag.offset - self.nitems_read(0) + len(self.stream)
-            packet = window[start : start + self.packet_len]
-            self.data += packet
-            self.add_item_tag(0, self.written, self.packetlen_tag, pmt.from_long(self.packet_len))
-            self.written += self.packet_len
+        alltags = self.get_tags_in_range(0, self.maxtag, self.nitems_read(0) + len(inp), self.syncword_tag)
+        for tag in alltags:
+            if tag.offset not in self.tags:
+                self.maxtag = max(self.maxtag, tag.offset)
+                self.tags.append(tag.offset)
+        for tag in self.tags:
+            if (tag >= self.nitems_read(0) - len(self.stream)) and (tag < self.nitems_read(0) + len(inp) - self.packet_len + 1):
+                self.tags.remove(tag)
+                start = tag - self.nitems_read(0) + len(self.stream)
+                packet = window[start : start + self.packet_len]
+                self.data += packet
+                self.add_item_tag(0, self.written, self.packetlen_tag, pmt.from_long(self.packet_len))
+                self.written += self.packet_len
 
         self.stream.extend(inp.tolist())
 
